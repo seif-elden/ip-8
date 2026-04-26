@@ -1,0 +1,53 @@
+{
+  "info": {
+    "name": "Course Management API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Course",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "http://localhost:3000/courses", "host": ["localhost"], "port": "3000", "path": ["courses"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Full Stack Web Dev\",\n  \"description\": \"Learn the MERN stack from scratch\",\n  \"instructor\": \"John Doe\",\n  \"price\": 49.99,\n  \"category\": \"Web Development\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get All Courses",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:3000/courses", "host": ["localhost"], "port": "3000", "path": ["courses"] }
+      }
+    },
+    {
+      "name": "Get Course By ID",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:3000/courses/:id", "host": ["localhost"], "port": "3000", "path": ["courses", ":id"], "variable": [{ "key": "id", "value": "PASTE_COURSE_ID_HERE" }] }
+      }
+    },
+    {
+      "name": "Update Course",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "http://localhost:3000/courses/:id", "host": ["localhost"], "port": "3000", "path": ["courses", ":id"], "variable": [{ "key": "id", "value": "PASTE_COURSE_ID_HERE" }] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"price\": 29.99,\n  \"enrolledStudents\": 150\n}"
+        }
+      }
+    },
+    {
+      "name": "Delete Course",
+      "request": {
+        "method": "DELETE",
+        "url": { "raw": "http://localhost:3000/courses/:id", "host": ["localhost"], "port": "3000", "path": ["courses", ":id"], "variable": [{ "key": "id", "value": "PASTE_COURSE_ID_HERE" }] }
+      }
+    }
+  ]
+}

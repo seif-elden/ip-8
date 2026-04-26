@@ -1,0 +1,340 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{hyperref}
+
+\definecolor{codebg}{rgb}{0.95,0.95,0.95}
+\definecolor{keyword}{rgb}{0.0,0.0,0.8}
+\definecolor{string}{rgb}{0.2,0.6,0.2}
+\definecolor{comment}{rgb}{0.5,0.5,0.5}
+
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{keyword}\bfseries,
+  stringstyle=\color{string},
+  commentstyle=\color{comment}\itshape,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  showstringspaces=false
+}
+
+\title{\textbf{Lab Report: Course Management API} \\ \large Building a Backend with Express.js, MongoDB \& Mongoose}
+\author{Seif Eldeen Ibrahim \\ ID: 22p0023}
+\date{Internet Programming --- Ain Shams University}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+% ─────────────────────────────────────────────
+\section{Objective}
+The goal of this lab is to build a RESTful backend API for managing online courses (Udemy-style). The API supports full CRUD operations using Express.js as the server framework and MongoDB as the database, connected through Mongoose.
+
+% ─────────────────────────────────────────────
+\section{Project Structure}
+\begin{lstlisting}
+ip-8/
+├── models/
+│   └── Course.js        <- Mongoose schema & model
+├── routes/
+│   └── courses.js       <- Express Router (CRUD)
+├── server.js            <- Entry point + DB connection
+├── .env                 <- Environment variables
+├── .gitignore
+└── package.json
+\end{lstlisting}
+
+% ─────────────────────────────────────────────
+\section{Dependencies}
+Three packages were installed using npm:
+\begin{itemize}
+  \item \textbf{express} --- Web framework for building the API server
+  \item \textbf{mongoose} --- ODM library to interact with MongoDB
+  \item \textbf{dotenv} --- Loads environment variables from \texttt{.env} file
+\end{itemize}
+
+\begin{lstlisting}[language=bash]
+npm install express mongoose dotenv
+\end{lstlisting}
+
+% ─────────────────────────────────────────────
+\section{Environment Configuration (.env)}
+The MongoDB connection string and port are stored in a \texttt{.env} file to keep them out of the source code.
+
+\begin{lstlisting}
+MONGO_URL=mongodb://localhost:27017/testDB
+PORT=3000
+\end{lstlisting}
+
+% ─────────────────────────────────────────────
+\section{Database Schema --- models/Course.js}
+A Mongoose schema defines the structure of every document stored in the \texttt{courses} collection. Each field has a type, required flag, and a default value where applicable.
+
+\begin{lstlisting}[language=JavaScript]
+const mongoose = require("mongoose");
+
+const courseSchema = new mongoose.Schema({
+  title:            { type: String, required: true },
+  description:      { type: String, required: true },
+  instructor:       { type: String, required: true },
+  price:            { type: Number, required: true },
+  category:         { type: String, required: true },
+  enrolledStudents: { type: Number, default: 0 },
+});
+
+module.exports = mongoose.model("Course", courseSchema);
+\end{lstlisting}
+
+\textbf{Explanation:}
+\begin{itemize}
+  \item \texttt{title}, \texttt{description}, \texttt{instructor}, \texttt{category} are required strings.
+  \item \texttt{price} is a required number.
+  \item \texttt{enrolledStudents} defaults to \texttt{0} if not provided.
+  \item \texttt{mongoose.model()} compiles the schema into a model that communicates with the \texttt{courses} collection in MongoDB.
+\end{itemize}
+
+% ─────────────────────────────────────────────
+\section{Express Server --- server.js}
+The entry point connects to MongoDB and mounts the courses router.
+
+\begin{lstlisting}[language=JavaScript]
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+
+const app = express();
+app.use(express.json());
+
+mongoose
+  .connect(process.env.MONGO_URL)
+  .then(() => console.log("Connected to MongoDB"))
+  .catch((err) => console.error("MongoDB connection error:", err));
+
+app.use("/courses", require("./routes/courses"));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () =>
+  console.log(`Server running on http://localhost:${PORT}`)
+);
+\end{lstlisting}
+
+\textbf{Explanation:}
+\begin{itemize}
+  \item \texttt{dotenv.config()} loads the \texttt{.env} variables into \texttt{process.env}.
+  \item \texttt{express.json()} middleware parses incoming JSON request bodies.
+  \item \texttt{mongoose.connect()} establishes the connection to the local MongoDB database.
+  \item All routes starting with \texttt{/courses} are handled by the courses router.
+\end{itemize}
+
+% ─────────────────────────────────────────────
+\section{Routes --- routes/courses.js}
+Route logic is separated into its own file using Express Router, keeping \texttt{server.js} clean.
+
+\begin{lstlisting}[language=JavaScript]
+const router = require("express").Router();
+const Course = require("../models/Course");
+
+// CREATE
+router.post("/", async (req, res) => {
+  try {
+    const course = await Course.create(req.body);
+    res.status(201).json(course);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// READ ALL
+router.get("/", async (req, res) => {
+  try {
+    const courses = await Course.find();
+    res.json(courses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// READ ONE
+router.get("/:id", async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ error: "Course not found" });
+    res.json(course);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE
+router.put("/:id", async (req, res) => {
+  try {
+    const course = await Course.findByIdAndUpdate(
+      req.params.id, req.body,
+      { new: true, runValidators: true }
+    );
+    if (!course) return res.status(404).json({ error: "Course not found" });
+    res.json(course);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// DELETE
+router.delete("/:id", async (req, res) => {
+  try {
+    const course = await Course.findByIdAndDelete(req.params.id);
+    if (!course) return res.status(404).json({ error: "Course not found" });
+    res.json({ message: "Course deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
+\end{lstlisting}
+
+% ─────────────────────────────────────────────
+\section{CRUD Operations Summary}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Operation} & \textbf{Method \& Endpoint} & \textbf{Mongoose Function} \\
+\hline
+Create  & POST   /courses      & Course.create(req.body) \\
+Read All & GET   /courses      & Course.find() \\
+Read One & GET   /courses/:id  & Course.findById(id) \\
+Update  & PUT    /courses/:id  & Course.findByIdAndUpdate() \\
+Delete  & DELETE /courses/:id  & Course.findByIdAndDelete() \\
+\hline
+\end{tabular}
+\end{center}
+
+% ─────────────────────────────────────────────
+\section{Testing the API}
+
+\subsection{Postman Collection}
+A Postman collection file \texttt{CourseManagement.postman\_collection.json} is included in the project. To use it:
+\begin{enumerate}
+  \item Open Postman and click \textbf{Import}
+  \item Select the collection file
+  \item All 5 requests will be loaded and ready to run
+  \item Run \textbf{Create Course} first, then copy the returned \texttt{\_id} into the other requests
+\end{enumerate}
+
+\subsection{Testing with cURL}
+
+\textbf{1. Create a Course (POST)}
+\begin{lstlisting}[language=bash]
+curl -X POST http://localhost:3000/courses \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Full Stack Web Dev",
+    "description": "Learn the MERN stack from scratch",
+    "instructor": "John Doe",
+    "price": 49.99,
+    "category": "Web Development"
+  }'
+\end{lstlisting}
+
+\textbf{Result:}
+\begin{lstlisting}
+{
+  "_id": "64f1a2b3c4d5e6f7a8b9c0d1",
+  "title": "Full Stack Web Dev",
+  "description": "Learn the MERN stack from scratch",
+  "instructor": "John Doe",
+  "price": 49.99,
+  "category": "Web Development",
+  "enrolledStudents": 0,
+  "__v": 0
+}
+\end{lstlisting}
+
+\textbf{2. Get All Courses (GET)}
+\begin{lstlisting}[language=bash]
+curl http://localhost:3000/courses
+\end{lstlisting}
+
+\textbf{Result:}
+\begin{lstlisting}
+[
+  {
+    "_id": "64f1a2b3c4d5e6f7a8b9c0d1",
+    "title": "Full Stack Web Dev",
+    "description": "Learn the MERN stack from scratch",
+    "instructor": "John Doe",
+    "price": 49.99,
+    "category": "Web Development",
+    "enrolledStudents": 0,
+    "__v": 0
+  }
+]
+\end{lstlisting}
+
+\textbf{3. Get One Course (GET)}
+\begin{lstlisting}[language=bash]
+curl http://localhost:3000/courses/64f1a2b3c4d5e6f7a8b9c0d1
+\end{lstlisting}
+
+\textbf{Result:}
+\begin{lstlisting}
+{
+  "_id": "64f1a2b3c4d5e6f7a8b9c0d1",
+  "title": "Full Stack Web Dev",
+  "instructor": "John Doe",
+  "price": 49.99,
+  "category": "Web Development",
+  "enrolledStudents": 0
+}
+\end{lstlisting}
+
+\textbf{4. Update a Course (PUT)}
+\begin{lstlisting}[language=bash]
+curl -X PUT http://localhost:3000/courses/64f1a2b3c4d5e6f7a8b9c0d1 \
+  -H "Content-Type: application/json" \
+  -d '{ "price": 29.99, "enrolledStudents": 150 }'
+\end{lstlisting}
+
+\textbf{Result:}
+\begin{lstlisting}
+{
+  "_id": "64f1a2b3c4d5e6f7a8b9c0d1",
+  "title": "Full Stack Web Dev",
+  "instructor": "John Doe",
+  "price": 29.99,
+  "category": "Web Development",
+  "enrolledStudents": 150
+}
+\end{lstlisting}
+
+\textbf{5. Delete a Course (DELETE)}
+\begin{lstlisting}[language=bash]
+curl -X DELETE http://localhost:3000/courses/64f1a2b3c4d5e6f7a8b9c0d1
+\end{lstlisting}
+
+\textbf{Result:}
+\begin{lstlisting}
+{ "message": "Course deleted" }
+\end{lstlisting}
+
+% ─────────────────────────────────────────────
+\section{Conclusion}
+This lab demonstrated how to build a clean, structured RESTful API using Express.js and MongoDB. Key concepts applied:
+\begin{itemize}
+  \item Defining a Mongoose schema to enforce data structure
+  \item Using a Mongoose model to perform all database operations
+  \item Separating route logic with Express Router for clean code organization
+  \item Using \texttt{dotenv} to manage environment variables securely
+  \item Testing all endpoints using both cURL and a Postman collection
+\end{itemize}
+
+\end{document}
